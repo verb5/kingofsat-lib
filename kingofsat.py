@@ -26,11 +26,11 @@ class Satellite:
             self.page=urllib2.urlopen(self.sat)
             self.soup=BeautifulSoup(self.page,"html5lib")
             conta=self.soup.find_all('table',class_='frq')
-
+        baza=sqlite3.connect('bazata2')
+        c=baza.cursor()
+        c.execute('drop table if exists parameters')
+        c.execute('CREATE TABLE parameters(id integer primary key autoincrement,channel text,transponder text,fr int,lnb character,fec text,degree int,vpid int,apid int,sid int,nid int,tid int);')
         for el in range(len(conta)):
-            #print '[%s]'%conta[el].get_text()
-            #extracting all the satellite parameters in a List
-            #satelites=conta[el].find_all(['a','td'],class_='bld')
             satelites=conta[el].find_all('td')[:-1]
             satFreq=int(math.floor(float(satelites[2].string)))
             for headerElement in satelites:
@@ -47,16 +47,24 @@ class Satellite:
                     #for rd in (2,7,8,9,10,11):
                     chanName=el[2].get_text().strip()
                     provider='satoperator'
+                    transponder=satFreq
+                    fr=self.satParameters[satFreq]['transponderParameters'][3]
+                    lnb=self.satParameters[satFreq]['transponderParameters'][4]
+                    fec=self.satParameters[satFreq]['transponderParameters'][8][-3:]
+                    deg=self.satParameters[satFreq]['transponderParameters'][0][:4]+self.satParameters[satFreq]['transponderParameters'][0][5:]
                     sid=el[7].get_text()
                     vpid=el[8].get_text()
                     apid=el[9].get_text().split()[0]
-
-                    print 'channame: %s sid %s'%(chanName,sid)
+                    nid=self.satParameters[satFreq]['transponderParameters'][10][4:]
+                    tid=self.satParameters[satFreq]['transponderParameters'][11][4:]
+                    c.execute('''insert into parameters(channel,transponder,fr,lnb,fec,degree,vpid,apid,sid,nid,tid) values ("%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s")'''%(chanName,transponder,fr,lnb,fec,deg,vpid,apid,sid,nid,tid))
+                    #print 'channame:[%s];Freq:[%sMhz];lnb:[%s];fec:[%s];deg:[%s] '%(chanName,satFreq,self.satParameters[satFreq]['transponderParameters'][3],self.satParameters[satFreq]['transponderParameters'][8][-3:],deg)
 
             except Exception as e:
                 print e
-        #print '===> %s <===='%satelites
-        print el
+        baza.commit()
+        baza.close()
+        #print self.satParameters
     def getParameters(self,transponder):
         for val in self.satParameters[transponder]['transponderParameters']:
             print val
@@ -70,13 +78,16 @@ class Satellite:
 
 
 
-proba=Satellite('http://en.kingofsat.net/pos-13E.php')
+proba=Satellite('http://en.kingofsat.net/pos-16E.php')
 proba.get()
 #print proba.satParameters
-baza=sqlite3.connect('bazata')
-c=baza.cursor()
+
+#c=baza.cursor()
+"""
 for trans in sorted(proba.satParameters):
-    #c.execute('''insert into parameters('channel,transponder,fr,lnb,fec,degree,vpid,apid,sid,nid,tid')values('%s,%d,%d,%s,%s,%d,%d,%d,%d,%d,%d'%(trans)''')
+    c.execute('drop table if exists parameters')
+    c.execute('CREATE TABLE parameters(id integer primary key autoincrement,channel text,transponder text,fr int,lnb character,fec text,degree int,vpid int,apid int,sid int,nid int,tid int);')
+    c.execute('''insert into parameters('channel,transponder,fr,lnb,fec,degree,vpid,apid,sid,nid,tid')values('%s,%d,%d,%s,%s,%d,%d,%d,%d,%d,%d'%(trans)''')
     #print '[%s] : parameters: %s \n\t channels: %s '%(trans,proba.satParameters[trans]['transponderParameters'],proba.satParameters[trans].get('tansponderChannels'))
 
 
@@ -85,3 +96,4 @@ for trans in sorted(proba.satParameters):
     pass
     #for channel in proba.satParameters[trans]['tansponderChannels']:
     #    print '[ %% %s %% ]'%channel
+    """
